@@ -10,6 +10,14 @@ from tools.moltbook.helpers.verification import find_verification_obj, solve_cha
 
 MAX_VERIFY_ATTEMPTS = 5
 
+# The Moltbook API returns 409 (already used), 410 (expired), or 404
+# (invalid) for the verification code in various error scenarios — all of
+# which require re-creating the post to get a fresh code.
+# It is unclear whether a *wrong answer* also permanently consumes the code.
+# Set this to True if retrying /verify with the same code after a wrong
+# answer keeps returning 409.
+REPOST_ON_WRONG_ANSWER = False
+
 
 def run_post_loop(
     submolt_name: str,
@@ -21,9 +29,10 @@ def run_post_loop(
 ) -> str:
     """Create a post and handle the verification challenge loop.
 
-    Attempts up to MAX_VERIFY_ATTEMPTS times.  On a 410 (expired code) the
-    post is re-created automatically; any other non-recoverable status returns
-    an error string immediately.
+    Attempts up to MAX_VERIFY_ATTEMPTS times.  404 / 409 / 410 responses from
+    /verify all trigger a full repost to obtain a fresh verification code.
+    Whether a wrong answer also requires a repost is controlled by the
+    REPOST_ON_WRONG_ANSWER flag at the top of this module.
 
     Returns a human-readable result string in all cases.
     """
@@ -101,6 +110,11 @@ def run_post_loop(
 
         try:
             verify_data = verify_resp.json()
+            log(f"""
+Verification Response:
+                
+{json.dumps(verify_data,indent=2)}
+""".strip())
         except Exception:
             return (
                 f"create_post: non-JSON verification response "
@@ -108,16 +122,16 @@ def run_post_loop(
             )
 
         if verify_resp.status_code == 404:
-            return (
-                f"create_post: verification failed — invalid verification code "
-                f"(404). Cannot recover: {json.dumps(verify_data)}"
-            )
+            # Invalid verification code — re-create the post to get a fresh one.
+            needs_repost = True
+            verification_code = None
+            continue
 
         if verify_resp.status_code == 409:
-            return (
-                f"create_post: verification failed — code already used "
-                f"(409). Cannot recover: {json.dumps(verify_data)}"
-            )
+            # Code already consumed — re-create the post to get a fresh one.
+            needs_repost = True
+            verification_code = None
+            continue
 
         if verify_data.get("success"):
             post_id = (
@@ -130,8 +144,13 @@ def run_post_loop(
                 f"(id: {post_id}, answer used: {answer!r})."
             )
 
-        # Incorrect answer — retry with the same verification code.
+        # Incorrect answer — success=false in the response body (may be a 200
+        # or a 4xx; the example shape is {success: false, error: "Incorrect
+        # answer", hint: "...", content_id: "..."}).
         hint = verify_data.get("hint", "")
+        if REPOST_ON_WRONG_ANSWER:
+            needs_repost = True
+            verification_code = None
 
     return (
         f"create_post: exhausted {MAX_VERIFY_ATTEMPTS} verification attempts "

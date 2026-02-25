@@ -5,8 +5,12 @@ import json
 from src.utils.llm.streaming import StreamingLLM
 from src.utils.log import log
 
-VERIFICATION_MODEL = "meta-llama/llama-3.2-3b-instruct"
-VERIFICATION_MAX_TOKENS = 32
+# VERIFICATION_MODEL = "meta-llama/llama-3.2-3b-instruct"
+# VERIFICATION_MAX_TOKENS = 32
+
+# Thinking tends to be useful
+VERIFICATION_MODEL="qwen/qwen3-8b"
+VERIFICATION_MAX_TOKENS=16384
 
 
 def find_verification_obj(data: object) -> dict | None:
@@ -41,10 +45,14 @@ def solve_challenge(llm: StreamingLLM, challenge_text: str) -> str:
     Always overrides the model to VERIFICATION_MODEL and caps output at
     VERIFICATION_MAX_TOKENS so a lightweight, non-reasoning model is used.
     """
+    remove_chars="[]^/?\\&*!@#$%():;\'\"<>"
+    cleaned = challenge_text.lower().strip()
+    for char in remove_chars:
+        cleaned = cleaned.replace(char, "")
     prompt = (
         "Decode and solve the following math problem. "
-        "The text has random capitalisation and punctuation noise "
-        "(characters like ], [, ^, /, - scattered through the words). "
+        "The text mays random capitalisation and punctuation noise "
+        "or random special characters scattered through the words). "
         "Strip all that noise, read the plain English sentence, solve it, "
         "and reply with ONLY the numeric answer formatted to exactly 2 decimal "
         "places (e.g. '15.00'). No explanation, no other text.\n\n"
