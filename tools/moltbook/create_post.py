@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.data import get_pool
+from src.tools._memory import ensure_session_memory
 from src.utils.http.helpers import (
     apply_service_tokens_to_headers,
     load_latest_service_tokens_from_db,
@@ -33,10 +34,20 @@ DEFINITION: dict = {
                 },
                 "content": {
                     "type": "string",
-                    "description": "Body content of the post.",
+                    "description": (
+                        "Body content of the post. "
+                        "Mutually exclusive with session_memory_key — provide exactly one."
+                    ),
+                },
+                "session_memory_key": {
+                    "type": "string",
+                    "description": (
+                        "Session memory key whose value is used as the post body. "
+                        "Mutually exclusive with content — provide exactly one."
+                    ),
                 },
             },
-            "required": ["submolt_name", "title", "content"],
+            "required": ["submolt_name", "title"],
             "additionalProperties": False,
         },
     },
@@ -84,7 +95,29 @@ def execute(args: dict, session_data: dict) -> str:
 
     submolt_name: str = args["submolt_name"]
     title: str = args["title"]
-    content: str = args["content"]
+
+    # --- resolve content (mutually exclusive sources) ---
+    content_direct: str | None = args.get("content")
+    memory_key: str | None = args.get("session_memory_key")
+
+    if content_direct is not None and memory_key is not None:
+        return "create_post: provide either 'content' or 'session_memory_key', not both."
+    if content_direct is None and memory_key is None:
+        return "create_post: one of 'content' or 'session_memory_key' is required."
+
+    if memory_key is not None:
+        memory = ensure_session_memory(session_data)
+        value = memory.get(memory_key)
+        if value is None:
+            return f"create_post: session memory key {memory_key!r} not found."
+        if not isinstance(value, str):
+            return (
+                f"create_post: session memory key {memory_key!r} does not hold a text "
+                f"value (got {type(value).__name__})."
+            )
+        content = value
+    else:
+        content = content_direct
 
     # --- load moltbook service token ---
     try:
