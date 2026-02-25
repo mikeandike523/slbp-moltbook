@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.eol": "\n",
+		"terminal.integrated.defaultProfile.windows": "Git Bash",
+		"python.analysis.extraPaths": ["${workspaceFolder}/../small-llm-big-projects"]
+	}
+}
