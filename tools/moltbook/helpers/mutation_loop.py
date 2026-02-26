@@ -19,73 +19,72 @@ MAX_VERIFY_ATTEMPTS = 5
 REPOST_ON_WRONG_ANSWER = False
 
 
-def run_post_loop(
-    submolt_name: str,
-    title: str,
-    content: str,
+def run_mutation_loop(
+    endpoint: str,
+    method: str,
+    data: dict,
     llm: StreamingLLM,
     base_headers: dict,
     base_url: str,
 ) -> str:
-    """Create a post and handle the verification challenge loop.
+    """Submit a mutation and handle the verification challenge loop.
 
-    Attempts up to MAX_VERIFY_ATTEMPTS times.  404 / 409 / 410 responses from
-    /verify all trigger a full repost to obtain a fresh verification code.
-    Whether a wrong answer also requires a repost is controlled by the
+    Makes a request to ``{base_url}{endpoint}`` using ``method`` and ``data``
+    as the JSON body.  Retries the verification challenge up to
+    MAX_VERIFY_ATTEMPTS times.  404 / 409 / 410 responses from /verify all
+    trigger a full re-submission to obtain a fresh verification code.
+    Whether a wrong answer also requires a re-submission is controlled by the
     REPOST_ON_WRONG_ANSWER flag at the top of this module.
 
     Returns a human-readable result string in all cases.
     """
     verification_code: str | None = None
     challenge_text = ""
-    needs_repost = True
+    needs_resubmit = True
     attempts = 0
     answer = ""
     hint = ""
+    url = f"{base_url}{endpoint}"
 
     while attempts < MAX_VERIFY_ATTEMPTS:
 
-        if needs_repost:
-            post_body = {
-                "submolt_name": submolt_name,
-                "title": title,
-                "content": content,
-            }
+        if needs_resubmit:
             try:
-                resp = httpx.post(
-                    f"{base_url}/posts",
-                    json=post_body,
+                resp = httpx.request(
+                    method,
+                    url,
+                    json=data,
                     headers=base_headers,
                     timeout=20,
                     follow_redirects=True,
                 )
             except Exception as e:
-                return f"create_post: HTTP error while creating post: {e}"
+                return f"mutation_loop: HTTP error during {method} {endpoint}: {e}"
 
             try:
-                data = resp.json()
+                resp_data = resp.json()
             except Exception:
                 return (
-                    f"create_post: non-JSON response from /posts "
+                    f"mutation_loop: non-JSON response from {endpoint} "
                     f"(status {resp.status_code}): {resp.text[:400]}"
                 )
 
-            if not data.get("success"):
+            if not resp_data.get("success"):
                 return (
-                    f"create_post: post creation failed "
-                    f"(status {resp.status_code}): {json.dumps(data)}"
+                    f"mutation_loop: request failed "
+                    f"(status {resp.status_code}): {json.dumps(resp_data)}"
                 )
 
-            verification_obj = find_verification_obj(data)
+            verification_obj = find_verification_obj(resp_data)
             if not verification_obj:
-                # No verification required — post published immediately.
-                post_id = data.get("post", {}).get("id", "unknown")
-                return f"create_post: post published successfully (id: {post_id})."
+                # No verification required — request completed immediately.
+                post_id = resp_data.get("post", {}).get("id", "unknown")
+                return f"mutation_loop: request succeeded (id: {post_id})."
 
             verification_code = verification_obj["verification_code"]
             challenge_text = verification_obj["challenge_text"]
             log(repr((verification_code, challenge_text)))
-            needs_repost = False
+            needs_resubmit = False
 
         # Solve and verify.
         attempts += 1
@@ -100,11 +99,11 @@ def run_post_loop(
                 follow_redirects=True,
             )
         except Exception as e:
-            return f"create_post: HTTP error while verifying: {e}"
+            return f"mutation_loop: HTTP error while verifying: {e}"
 
         if verify_resp.status_code == 410:
-            # Verification code expired — re-create the post.
-            needs_repost = True
+            # Verification code expired — re-submit.
+            needs_resubmit = True
             verification_code = None
             continue
 
@@ -112,24 +111,24 @@ def run_post_loop(
             verify_data = verify_resp.json()
             log(f"""
 Verification Response:
-                
+
 {json.dumps(verify_data,indent=2)}
 """.strip())
         except Exception:
             return (
-                f"create_post: non-JSON verification response "
+                f"mutation_loop: non-JSON verification response "
                 f"(status {verify_resp.status_code}): {verify_resp.text[:400]}"
             )
 
         if verify_resp.status_code == 404:
-            # Invalid verification code — re-create the post to get a fresh one.
-            needs_repost = True
+            # Invalid verification code — re-submit to get a fresh one.
+            needs_resubmit = True
             verification_code = None
             continue
 
         if verify_resp.status_code == 409:
-            # Code already consumed — re-create the post to get a fresh one.
-            needs_repost = True
+            # Code already consumed — re-submit to get a fresh one.
+            needs_resubmit = True
             verification_code = None
             continue
 
@@ -140,7 +139,7 @@ Verification Response:
                 or "unknown"
             )
             return (
-                f"create_post: post verified and published successfully "
+                f"mutation_loop: verified and published successfully "
                 f"(id: {post_id}, answer used: {answer!r})."
             )
 
@@ -149,11 +148,11 @@ Verification Response:
         # answer", hint: "...", content_id: "..."}).
         hint = verify_data.get("hint", "")
         if REPOST_ON_WRONG_ANSWER:
-            needs_repost = True
+            needs_resubmit = True
             verification_code = None
 
     return (
-        f"create_post: exhausted {MAX_VERIFY_ATTEMPTS} verification attempts "
+        f"mutation_loop: exhausted {MAX_VERIFY_ATTEMPTS} verification attempts "
         f"without success. Last answer tried: {answer!r}. "
-        f"Hint from server: {hint!r}. Could not publish the post."
+        f"Hint from server: {hint!r}. Could not complete the request."
     )

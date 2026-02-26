@@ -9,7 +9,7 @@ from src.utils.http.helpers import (
 from src.utils.llm.streaming import StreamingLLM
 from src.utils.sql.kv_manager import KVManager
 from src.utils.log import log
-from tools.moltbook.helpers.post_loop import run_post_loop
+from tools.moltbook.helpers.mutation_loop import run_mutation_loop
 
 LEAVE_OUT = "KEEP"
 
@@ -18,7 +18,8 @@ DEFINITION: dict = {
     "function": {
         "name": "create_post",
         "description": (
-            "Create a post on Moltbook. Handles the AI verification challenge "
+            "Create a post on Moltbook. Supports regular posts (with body content) "
+            "and link posts (a single URL). Handles the AI verification challenge "
             "automatically (up to 5 attempts)."
         ),
         "parameters": {
@@ -36,14 +37,22 @@ DEFINITION: dict = {
                     "type": "string",
                     "description": (
                         "Body content of the post. "
-                        "Mutually exclusive with session_memory_key — provide exactly one."
+                        "Mutually exclusive with session_memory_key and link_post_url."
                     ),
                 },
                 "session_memory_key": {
                     "type": "string",
                     "description": (
                         "Session memory key whose value is used as the post body. "
-                        "Mutually exclusive with content — provide exactly one."
+                        "Mutually exclusive with content and link_post_url."
+                    ),
+                },
+                "link_post_url": {
+                    "type": "string",
+                    "description": (
+                        "URL for a link post. When provided the post is treated as a "
+                        "link post by Moltbook. Mutually exclusive with content and "
+                        "session_memory_key — do not provide either when using this."
                     ),
                 },
             },
@@ -96,28 +105,42 @@ def execute(args: dict, session_data: dict) -> str:
     submolt_name: str = args["submolt_name"]
     title: str = args["title"]
 
-    # --- resolve content (mutually exclusive sources) ---
+    # --- resolve post type (mutually exclusive sources) ---
     content_direct: str | None = args.get("content")
     memory_key: str | None = args.get("session_memory_key")
+    link_post_url: str | None = args.get("link_post_url")
 
-    if content_direct is not None and memory_key is not None:
-        return "create_post: provide either 'content' or 'session_memory_key', not both."
-    if content_direct is None and memory_key is None:
-        return "create_post: one of 'content' or 'session_memory_key' is required."
-
-    if memory_key is not None:
-        memory = ensure_session_memory(session_data)
-        value = memory.get(memory_key)
-        if value is None:
-            return f"create_post: session memory key {memory_key!r} not found."
-        if not isinstance(value, str):
+    if link_post_url is not None:
+        if content_direct is not None or memory_key is not None:
             return (
-                f"create_post: session memory key {memory_key!r} does not hold a text "
-                f"value (got {type(value).__name__})."
+                "create_post: 'link_post_url' is mutually exclusive with "
+                "'content' and 'session_memory_key'."
             )
-        content = value
+        post_data = {"submolt_name": submolt_name, "title": title, "url": link_post_url}
     else:
-        content = content_direct
+        if content_direct is not None and memory_key is not None:
+            return "create_post: provide either 'content' or 'session_memory_key', not both."
+        if content_direct is None and memory_key is None:
+            return (
+                "create_post: one of 'content', 'session_memory_key', or "
+                "'link_post_url' is required."
+            )
+
+        if memory_key is not None:
+            memory = ensure_session_memory(session_data)
+            value = memory.get(memory_key)
+            if value is None:
+                return f"create_post: session memory key {memory_key!r} not found."
+            if not isinstance(value, str):
+                return (
+                    f"create_post: session memory key {memory_key!r} does not hold a text "
+                    f"value (got {type(value).__name__})."
+                )
+            content = value
+        else:
+            content = content_direct
+
+        post_data = {"submolt_name": submolt_name, "title": title, "content": content}
 
     # --- load moltbook service token ---
     try:
@@ -151,4 +174,11 @@ def execute(args: dict, session_data: dict) -> str:
         timeout_s=30,
     )
 
-    return run_post_loop(submolt_name, title, content, llm, base_headers, _BASE_URL)
+    return run_mutation_loop(
+        endpoint="/posts",
+        method="POST",
+        data=post_data,
+        llm=llm,
+        base_headers=base_headers,
+        base_url=_BASE_URL,
+    )
