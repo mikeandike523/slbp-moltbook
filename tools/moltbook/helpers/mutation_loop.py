@@ -22,19 +22,20 @@ REPOST_ON_WRONG_ANSWER = False
 def run_mutation_loop(
     endpoint: str,
     method: str,
-    data: dict,
     llm: StreamingLLM,
     base_headers: dict,
     base_url: str,
+    data: dict | None = None,
 ) -> str:
     """Submit a mutation and handle the verification challenge loop.
 
-    Makes a request to ``{base_url}{endpoint}`` using ``method`` and ``data``
-    as the JSON body.  Retries the verification challenge up to
-    MAX_VERIFY_ATTEMPTS times.  404 / 409 / 410 responses from /verify all
-    trigger a full re-submission to obtain a fresh verification code.
-    Whether a wrong answer also requires a re-submission is controlled by the
-    REPOST_ON_WRONG_ANSWER flag at the top of this module.
+    Makes a request to ``{base_url}{endpoint}`` using ``method``. ``data``,
+    if provided, is sent as the JSON body; omit it for bodyless requests such
+    as DELETE.  Retries the verification challenge up to MAX_VERIFY_ATTEMPTS
+    times.  404 / 409 / 410 responses from /verify all trigger a full
+    re-submission to obtain a fresh verification code.  Whether a wrong answer
+    also requires a re-submission is controlled by the REPOST_ON_WRONG_ANSWER
+    flag at the top of this module.
 
     Returns a human-readable result string in all cases.
     """
@@ -50,14 +51,10 @@ def run_mutation_loop(
 
         if needs_resubmit:
             try:
-                resp = httpx.request(
-                    method,
-                    url,
-                    json=data,
-                    headers=base_headers,
-                    timeout=20,
-                    follow_redirects=True,
-                )
+                kwargs = {"headers": base_headers, "timeout": 20, "follow_redirects": True}
+                if data is not None:
+                    kwargs["json"] = data
+                resp = httpx.request(method, url, **kwargs)
             except Exception as e:
                 return f"mutation_loop: HTTP error during {method} {endpoint}: {e}"
 

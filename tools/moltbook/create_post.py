@@ -177,8 +177,8 @@ def execute(args: dict, session_data: dict) -> str:
     return run_mutation_loop(
         endpoint="/posts",
         method="POST",
-        data=post_data,
         llm=llm,
         base_headers=base_headers,
         base_url=_BASE_URL,
+        data=post_data,
     )

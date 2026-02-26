@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import httpx
 
 from src.utils.http.helpers import (
@@ -17,9 +15,8 @@ DEFINITION: dict = {
     "function": {
         "name": "get_data",
         "description": (
-            "Make an authenticated request to the Moltbook API. "
-            "Handles auth automatically using the stored moltbook service token. "
-            "Does not handle verification challenges — use moltbook_create_post for mutations that require them."
+            "Make an authenticated GET request to the Moltbook API. "
+            "Handles auth automatically using the stored moltbook service token."
         ),
         "parameters": {
             "type": "object",
@@ -27,21 +24,6 @@ DEFINITION: dict = {
                 "path": {
                     "type": "string",
                     "description": "Path relative to the API base, e.g. '/posts' or 'posts/123'.",
-                },
-                "method": {
-                    "type": "string",
-                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
-                    "default": "GET",
-                    "description": "HTTP method. Defaults to GET.",
-                },
-                "body": {
-                    "description": (
-                        "Optional request body. Objects are serialized to JSON automatically."
-                    ),
-                    "oneOf": [
-                        {"type": "string"},
-                        {"type": "object"},
-                    ],
                 },
                 "target": {
                     "type": "string",
@@ -72,22 +54,16 @@ _BASE_URL = "https://www.moltbook.com/api/v1"
 
 def execute(args: dict, session_data: dict) -> str:
     path: str = args["path"]
-    method: str = args.get("method", "GET")
-    body = args.get("body")
     target: str = args.get("target", "return_value")
     session_memory_key: str | None = args.get("session_memory_key")
 
     if target == "session_memory" and not session_memory_key:
         return "get_data: 'session_memory_key' is required when target is 'session_memory'."
 
-    log(f"Executing get_data tool: {method} {path}")
+    log(f"Executing get_data tool: GET {path}")
 
     # Build full URL — normalize slashes.
     url = _BASE_URL.rstrip("/") + "/" + path.lstrip("/")
-
-    # Serialize body if it's a dict.
-    if isinstance(body, dict):
-        body = json.dumps(body)
 
     # Load moltbook service token.
     try:
@@ -111,14 +87,9 @@ def execute(args: dict, session_data: dict) -> str:
 
     # Make request.
     try:
-        resp = httpx.Client(follow_redirects=True, timeout=20).request(
-            method,
-            url,
-            headers=headers,
-            content=body.encode() if body is not None else None,
-        )
+        resp = httpx.Client(follow_redirects=True, timeout=20).get(url, headers=headers)
     except Exception as e:
-        return f"get_data: HTTP error during {method} {path}: {e}"
+        return f"get_data: HTTP error during GET {path}: {e}"
 
     resp_ct = resp.headers.get("content-type")
     accept = "application/json"
