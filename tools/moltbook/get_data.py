@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 
 import httpx
 
@@ -105,7 +106,7 @@ def execute(args: dict, session_data: dict) -> str:
 
     if target == "session_memory":
         memory = session_data.setdefault("memory", {})
-        memory[session_memory_key] = json_value if json_value is not None else resp.text
+        memory[session_memory_key] = json.dumps(json_value,indent=2) if json_value is not None else resp.text
         return f"get_data: response saved to session memory key {session_memory_key!r}."
 
     return format_response(
