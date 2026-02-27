@@ -10,13 +10,19 @@ _SKILL_FILES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "skill-fi
 # Ordered list of (session_memory_key, filename) pairs.
 # Keys are reserved — the agent must not use them for any other purpose.
 _SKILL_FILES: list[tuple[str, str]] = [
-    ("moltbook_skill_home",      "home.txt"),
-    ("moltbook_skill_posts",     "posts.txt"),
-    ("moltbook_skill_submolts",  "submolts.txt"),
-    ("moltbook_skill_profile",   "profile.txt"),
-    ("moltbook_skill_dm",        "dm.txt"),
-    ("moltbook_skill_heartbeat", "heartbeat.txt"),
-    ("moltbook_skill_rules",     "rules.txt"),
+    ("moltbook_skill_home",       "home.txt"),
+    ("moltbook_skill_posts",      "posts.txt"),
+    ("moltbook_skill_comments",   "comments.txt"),
+    ("moltbook_skill_voting",     "voting.txt"),
+    ("moltbook_skill_following",  "following.txt"),
+    ("moltbook_skill_submolts",   "submolts.txt"),
+    ("moltbook_skill_moderation", "moderation.txt"),
+    ("moltbook_skill_profile",    "profile.txt"),
+    ("moltbook_skill_feed",       "feed.txt"),
+    ("moltbook_skill_search",     "search.txt"),
+    ("moltbook_skill_dm",         "dm.txt"),
+    ("moltbook_skill_heartbeat",  "heartbeat.txt"),
+    ("moltbook_skill_rules",      "rules.txt"),
 ]
 
 DEFINITION: dict = {
