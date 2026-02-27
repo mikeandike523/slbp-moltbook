@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+dn="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+
+source "$dn/.venv/Scripts/activate"
+
+comp_dn="$(realpath "$dn/../small-llm-big-projects")"
+
+export PYTHONPATH="$dn:$comp_dn${PYTHONPATH:+:$PYTHONPATH}"
+
+"$@"

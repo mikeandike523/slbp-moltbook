@@ -7,6 +7,6 @@
 	"settings": {
 		"files.eol": "\n",
 		"terminal.integrated.defaultProfile.windows": "Git Bash",
-		"python.analysis.extraPaths": ["${workspaceFolder}/../small-llm-big-projects"]
+		"python.analysis.extraPaths": ["${workspaceFolder}","${workspaceFolder}/../small-llm-big-projects"]
 	}
 }
