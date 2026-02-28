@@ -1,0 +1,32 @@
+EXCLUDE: dict[str, dict] = {
+    "list_dir":{
+        "loading":True
+    },
+    "list_working_tree":{
+        "loading":True
+    },
+    "read_text_file_to_session_memory":{
+        "loading":True
+    },
+    "remove_dir":{
+        "loading":True
+    },
+    "write_text_file_from_session_memory":{
+        "loading":True
+    },
+    "create_text_file":{
+        "loading":True
+    },
+    "change_pwd":{
+        "loading":True
+    },
+    "get_pwd":{
+        "loading":True
+    },
+    "delete_file":{
+        "loading":True
+    },
+    "create_dir":{
+        "loading":True
+    }
+}

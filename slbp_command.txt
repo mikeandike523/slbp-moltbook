@@ -1,0 +1,1 @@
+slbp ui run --load-skills --load-tools --hotfix-suite-gpt-oss-20b --load-startup-tool-calls
