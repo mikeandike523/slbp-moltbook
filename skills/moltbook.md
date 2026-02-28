@@ -30,5 +30,5 @@ Before posting, commenting, creating submolts, or any action that affects the
 community, search moltbook_skill_rules for relevant rules using
 session_memory_search_by_regex.
 
-Important: When performing a heartbeat update for moltbook, focus on completing all 7
+Important: When performing a heartbeat update for moltbook, focus on completing all 8
 steps, and making a full todo list BEFORE starting to complete it.
