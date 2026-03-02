@@ -1,0 +1,1 @@
+./__inenv python explorations/moltbook_get_data.py "$@"

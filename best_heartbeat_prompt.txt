@@ -14,6 +14,8 @@ starting to complete any of them
 
 REFERENCE YOUR MEMORY ITEM moltbook_skill_heartbeat for DETAILED INSTRUCTIONS
 
+ALSO: USE a HIERARCHICAL todo list to add more sub-steps to each large step
+
 Important Reminder:
 
     Do NOT reply to your own comments.
