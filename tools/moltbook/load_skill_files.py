@@ -33,7 +33,7 @@ DEFINITION: dict = {
             "Idempotently load the Moltbook skill documentation files into session memory. "
             "Call this before every user request. Safe to call multiple times — it always "
             "force-overwrites the reserved skill keys. After loading, use "
-            "session_memory_search_by_regex to search the skill files for API details."
+            "session_memory({\"action\":\"search_by_regex\"}) to search the skill files for API details."
         ),
         "parameters": {
             "type": "object",

@@ -19,7 +19,7 @@ The skill files are stored under these reserved session memory keys:
 Do NOT use these key names for any other purpose -- loading the skill files
 force-overwrites them every time.
 
-The skill files are long. Use session_memory_search_by_regex judiciously to
+The skill files are long. Use session_memory({"action":"search_by_regex"}) judiciously to
 search them for the exact API call, tool name, or parameter you need rather
 than reading them in full each time.
 
